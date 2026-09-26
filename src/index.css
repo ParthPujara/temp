@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* Theme tokens: every --color-* here becomes a Tailwind color
+   usable as bg-*, text-*, border-*, ring-*, etc. */
+@theme {
+  /* Backgrounds */
+  --color-void: #07090C;
+  --color-surface: #0D1117;
+  --color-elevated: #141920;
+
+  /* Borders */
+  --color-border-subtle: #1E252E;
+  --color-border-active: #252B30;
+
+  /* Text */
+  --color-text-primary: #F3F5F7;
+  --color-text-secondary: #828C96;
+  --color-text-muted: #535C65;
+
+  /* Brand / accents */
+  --color-cyan-primary: #00E5FF;
+  --color-cyan-bright: #67F3FF;
+  --color-cyan-deep: #0097A7;
+  --color-violet-accent: #7C3AED;
+
+  /* Status */
+  --color-status-available: #10B981;
+}
+
+@layer base {
+  body {
+    @apply bg-void text-text-primary antialiased;
+  }
+}
