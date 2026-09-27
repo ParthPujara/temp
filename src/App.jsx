@@ -2,6 +2,7 @@ import Scene from './components/Scene/Scene'
 import Hero from './components/Hero Section/Hero'
 import About from './components/About Section/About'
 import Skills from './components/Skills Section/Skills.jsx'
+import Experience from './components/Experience Section/Experience.jsx'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Hero />
         <About />
         <Skills />
+        <Experience />
       </main>
     </>
   )

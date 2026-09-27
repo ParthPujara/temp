@@ -26,6 +26,13 @@ const PARTICLE_SIZE = 0.03
 const MAX_DELAY = 0.08 // per-particle start offset so they don't all move in lockstep
 const TRAVEL_END = 0.8 // skillsProgress where particles land (before their delay)
 const FADE_START = 0.82 // particle logos cross-fade into crisp logos from here to 1
+
+// Leaving (experienceProgress): the reverse of arriving
+const RINGS_FADE_END = 0.3 // ring lines and group names fade out by here
+const DISSOLVE_END = 0.12 // crisp logos turn back into particle logos by here
+const RETURN_START = 0.08 // particles leave their logos from here...
+const RETURN_END = 0.35 // ...and reach the core by here (plus their per-particle delay)
+const ABSORBED_END = 0.48 // particles fade into the re-formed stone by here
 const STONE_FILL = 0.65 // stone radius relative to the core (matches Model.jsx)
 
 const ORBIT_SPEEDS = [0.12, 0.18, 0.25] // radians per second, outer ring first
@@ -154,7 +161,11 @@ const stonePosition = new Vector3()
 // The Skills phase: the stone's particles fly out and reassemble as skill logos orbiting
 // the core on one tilted ring per skill group (first group on the outermost ring).
 // Rendered outside the drag controls so the rings hold still while the core is dragged.
-export default function SkillOrbits({ progressRef, stoneRef }) {
+// Positions are worked out in the parent group's space (not world space), so the parent can
+// move and shrink the whole orbit system.
+// Leaving for Experience (`experienceRef`, 0-1) plays the arrival in reverse: the logos
+// dissolve into particles that stream back into the core, where the stone re-forms.
+export default function SkillOrbits({ progressRef, experienceRef, stoneRef }) {
   const { logos, particles, glowTexture, ringLine } = useMemo(() => buildOrbits(), [])
   const ringRefs = useRef([]) // group per ring: line, hover area, logos, label
   const lineRefs = useRef([])
@@ -162,8 +173,8 @@ export default function SkillOrbits({ progressRef, stoneRef }) {
   const labelAnchorRefs = useRef([])
   const labelRefs = useRef([])
   const spriteRefs = useRef([])
-  const logoWorld = useRef(logos.map(() => new Vector3()))
-  const logoWorldSize = useRef(logos.map(() => 0))
+  const logoPositions = useRef(logos.map(() => new Vector3()))
+  const logoSizes = useRef(logos.map(() => 0))
   const pointsRef = useRef()
 
   // Orbit angle per ring, and the hover state with the animated values that follow it
@@ -198,12 +209,15 @@ export default function SkillOrbits({ progressRef, stoneRef }) {
 
   useFrame(({ viewport, size }, delta) => {
     const progress = progressRef.current
+    const leaving = experienceRef.current
+    const presence = 1 - smoothstep(leaving, 0, RINGS_FADE_END) // ring lines and names
+    const dissolve = smoothstep(leaving, 0, DISSOLVE_END) // crisp logos → particle logos
     const layout = orbitLayout(viewport, size, skillGroups.length)
     const grow = smoothstep(progress, RINGS_START, RINGS_END)
-    const ringsVisible = progress >= RINGS_START
+    const ringsVisible = progress >= RINGS_START && (presence > 0 || dissolve < 1)
 
-    // Hovering only counts once the logos have fully formed
-    const interactive = progress >= INTERACTIVE_FROM
+    // Hovering only counts once the logos have fully formed, and not once they start leaving
+    const interactive = progress >= INTERACTIVE_FROM && leaving < 0.01
     const activeLogo = interactive ? hoveredLogo.current : null
     const activeRing = !interactive
       ? -1
@@ -219,7 +233,7 @@ export default function SkillOrbits({ progressRef, stoneRef }) {
       // Rings grow outward from the core
       const radius = Math.max(layout.radii[k] * grow, 0.001)
       lineRefs.current[k].scale.set(radius, radius * layout.squash, radius * layout.depth)
-      lineRefs.current[k].material.opacity = RING_OPACITY * grow
+      lineRefs.current[k].material.opacity = RING_OPACITY * grow * presence
       hitAreaRefs.current[k].scale.set(radius, radius * layout.squash, 1)
 
       // Orbit eases to a stop while the pointer is over this ring
@@ -229,11 +243,12 @@ export default function SkillOrbits({ progressRef, stoneRef }) {
 
       // Group name just below the front of the ring
       ringPoint(labelAnchorRefs.current[k].position, -Math.PI / 2, radius, layout)
-      labelRefs.current[k].style.opacity = smoothstep(progress, 0.8, 1)
+      labelRefs.current[k].style.opacity = smoothstep(progress, 0.8, 1) * presence
     })
 
     // Logos travel around their ring; the far side is smaller and dimmer for depth
     const logoOpacity = smoothstep(progress, FADE_START, 1)
+    const logoPresence = logoOpacity * (1 - dissolve)
     logos.forEach(({ ring, slot }, k) => {
       const sprite = spriteRefs.current[k]
       const angle = angles.current[ring] + slot
@@ -246,19 +261,20 @@ export default function SkillOrbits({ progressRef, stoneRef }) {
         10,
         delta,
       ))
-      const worldSize = layout.logoSize * lerp(BACK_SCALE, 1, front) * hoverScale
-      sprite.scale.setScalar(worldSize)
+      const logoSize = layout.logoSize * lerp(BACK_SCALE, 1, front) * hoverScale
+      sprite.scale.setScalar(logoSize)
       sprite.material.opacity =
-        logoOpacity * (k === activeLogo ? 1 : lerp(BACK_OPACITY, 1, front))
-      sprite.getWorldPosition(logoWorld.current[k])
-      logoWorldSize.current[k] = worldSize
+        logoPresence * (k === activeLogo ? 1 : lerp(BACK_OPACITY, 1, front))
+      // Position in the parent's space: the ring group is only offset vertically
+      logoPositions.current[k].copy(sprite.position).setY(sprite.position.y + layout.centerY)
+      logoSizes.current[k] = logoSize
     })
 
     // Glow behind the hovered logo and its name underneath
     const glow = glowRef.current
     if (activeLogo !== null) {
-      const center = logoWorld.current[activeLogo]
-      const logoSize = logoWorldSize.current[activeLogo]
+      const center = logoPositions.current[activeLogo]
+      const logoSize = logoSizes.current[activeLogo]
       glow.position.copy(center)
       glow.scale.setScalar(logoSize * GLOW_SIZE)
       glow.material.color.set(logos[activeLogo].color)
@@ -268,12 +284,16 @@ export default function SkillOrbits({ progressRef, stoneRef }) {
     glow.visible = glow.material.opacity > 0.01
     nameRef.current.style.opacity = activeLogo !== null ? 1 : 0
 
+    // Particles show while the logos form (arriving) and while they return to the core (leaving)
     const points = pointsRef.current
-    points.visible = progress >= SHATTER_AT && progress < 1
+    const absorbed = smoothstep(leaving, RETURN_END, ABSORBED_END)
+    const particleOpacity = Math.max(1 - logoOpacity, dissolve) * (1 - absorbed)
+    points.visible = progress >= SHATTER_AT && particleOpacity > 0.001
     if (!points.visible) return
-    points.material.opacity = 1 - logoOpacity
+    points.material.opacity = particleOpacity
 
-    stoneRef.current.getWorldPosition(stonePosition)
+    // Stone position in the parent's space
+    points.parent.worldToLocal(stoneRef.current.getWorldPosition(stonePosition))
     const stoneRadius = layout.coreRadius * STONE_FILL
     const { start, offset, logo, delay, targetColor } = particles
     // Write through the geometry (a ref) rather than the memoized arrays
@@ -281,11 +301,15 @@ export default function SkillOrbits({ progressRef, stoneRef }) {
     const positions = position.array
     const colors = color.array
     for (let i = 0; i < particles.count; i++) {
-      const t = smoothstep(progress, SHATTER_AT + delay[i], TRAVEL_END + delay[i])
+      // 0 = at the stone, 1 = on its logo: out while arriving, back in while leaving
+      const arrived = smoothstep(progress, SHATTER_AT + delay[i], TRAVEL_END + delay[i])
+      const returned = smoothstep(leaving, RETURN_START + delay[i], RETURN_END + delay[i])
+      const t = arrived * (1 - returned)
       const arc = Math.sin(t * Math.PI) * BURST
-      const target = logoWorld.current[logo[i]]
-      const logoSize = logoWorldSize.current[logo[i]]
-      // The camera never rotates, so world x/y is the screen plane: logo shapes face the viewer
+      const target = logoPositions.current[logo[i]]
+      const logoSize = logoSizes.current[logo[i]]
+      // Neither the camera nor the parent rotates, so x/y is the screen plane: logo shapes
+      // face the viewer
       const shape = [offset[i * 2] * logoSize, offset[i * 2 + 1] * logoSize, 0]
 
       for (let axis = 0; axis < 3; axis++) {

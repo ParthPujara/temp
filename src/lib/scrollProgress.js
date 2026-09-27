@@ -13,3 +13,16 @@ export const skillsProgress = motionValue(0)
 
 // Point in skillsProgress where the stone breaks into particles
 export const SHATTER_AT = 0.4
+
+// Experience: the skill logos dissolve into particles that stream back into the core and
+// re-form the stone, the orbit system shrinks to the left, and the core splits into one
+// timeline node per experience entry, joined by a line
+export const experienceProgress = motionValue(0)
+
+// Point in experienceProgress where the core (with its re-formed stone) splits into the
+// timeline nodes
+export const NODES_SPLIT_AT = 0.45
+
+// The DOM boxes the timeline nodes sit on, one per experience entry (in order).
+// Registered by the Experience section, read by the 3D scene every frame.
+export const experienceAnchors = []
