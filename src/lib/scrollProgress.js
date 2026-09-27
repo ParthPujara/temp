@@ -26,3 +26,13 @@ export const NODES_SPLIT_AT = 0.45
 // The DOM boxes the timeline nodes sit on, one per experience entry (in order).
 // Registered by the Experience section, read by the 3D scene every frame.
 export const experienceAnchors = []
+
+// Contact: the timeline nodes gather in the center of the screen and merge into one
+// hero-style model, which then moves onto the right-hand side of the Contact section
+export const contactProgress = motionValue(0)
+
+// Point in contactProgress where the gathered nodes become the single model
+export const MERGE_AT = 0.45
+
+// The DOM box the merged model sits on. Registered by the Contact section.
+export const contactAnchor = { current: null }

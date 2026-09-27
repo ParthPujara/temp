@@ -1,8 +1,9 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { MathUtils, Vector3 } from 'three'
-import { experienceAnchors, NODES_SPLIT_AT } from '../../lib/scrollProgress'
+import { experienceAnchors, MERGE_AT, NODES_SPLIT_AT } from '../../lib/scrollProgress'
 import { experience } from '../Experience Section/experience'
+import { GATHER_END, MERGED_RADIUS } from './contactMerge'
 import { domToWorld } from './domToWorld'
 
 const { lerp, smoothstep } = MathUtils
@@ -35,7 +36,9 @@ const target = new Vector3()
 // Everything happens in the center of the screen first: the nodes spread into a vertical
 // column and a line joins them. Only then does the timeline glide left onto each entry's
 // placeholder box in the page (after which the nodes scroll with their cards).
-export default function ExperienceNodes({ progressRef, wireRef }) {
+// Contact (`contactRef`): the nodes leave their entries and gather at the center of the screen,
+// where they're replaced by the single merged model (see ContactModel.jsx).
+export default function ExperienceNodes({ progressRef, contactRef, wireRef }) {
   const nodeRefs = useRef([])
   const spinRefs = useRef([])
   const stoneRefs = useRef([])
@@ -50,6 +53,10 @@ export default function ExperienceNodes({ progressRef, wireRef }) {
     const splitting = progress >= NODES_SPLIT_AT
     const spread = smoothstep(progress, NODES_SPLIT_AT, FORMATION_END)
     const settle = smoothstep(progress, SETTLE_START, SETTLE_END)
+    const contact = contactRef.current
+    const gather = smoothstep(contact, 0, GATHER_END)
+    const mergedRadius = viewport.height * MERGED_RADIUS
+    const present = splitting && contact < MERGE_AT // the merged model takes over after this
 
     // Nodes start exactly where the core is, so it looks like the core divides
     wireRef.current.getWorldPosition(corePosition)
@@ -60,7 +67,7 @@ export default function ExperienceNodes({ progressRef, wireRef }) {
     experience.forEach((_, i) => {
       const node = nodeRefs.current[i]
       const anchor = experienceAnchors[i]
-      node.visible = splitting && Boolean(anchor)
+      node.visible = present && Boolean(anchor)
       if (!node.visible) return
 
       // 1. Core → this node's place in the centered column (first entry at the top)
@@ -72,6 +79,10 @@ export default function ExperienceNodes({ progressRef, wireRef }) {
       const anchorRadius = domToWorld(anchor, state, target)
       node.position.lerp(target, settle)
       radius = lerp(radius, anchorRadius, settle)
+
+      // 3. (Contact) entry → the center of the screen, growing to the merged model's size
+      node.position.multiplyScalar(1 - gather)
+      radius = lerp(radius, mergedRadius, gather)
       node.scale.setScalar(radius / WIRE_RADIUS)
       nodePositions.current[i].copy(node.position)
 
@@ -83,7 +94,7 @@ export default function ExperienceNodes({ progressRef, wireRef }) {
     // Line from the first node to the last, drawing itself downward (then moving with them)
     const line = lineRef.current
     const draw = smoothstep(progress, LINE_START, LINE_END)
-    line.visible = splitting && draw > 0
+    line.visible = present && draw > 0 // shrinks away as the nodes gather
     if (!line.visible) return
     const first = nodePositions.current[0]
     const last = nodePositions.current[experience.length - 1]

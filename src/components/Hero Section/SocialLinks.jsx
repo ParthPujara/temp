@@ -1,9 +1,10 @@
 import { FaGithub, FaLinkedinIn } from 'react-icons/fa6'
 import { LuMail } from 'react-icons/lu'
+import { CONTACT_EMAIL } from '../../lib/contact'
 
 // TODO: replace the LinkedIn and GitHub URLs with your profile links
 const links = [
-  { label: 'Email', href: 'mailto:parthtpujara@gmail.com', icon: LuMail },
+  { label: 'Email', href: `mailto:${CONTACT_EMAIL}`, icon: LuMail },
   { label: 'LinkedIn', href: 'https://www.linkedin.com/in/your-profile', icon: FaLinkedinIn },
   { label: 'GitHub', href: 'https://github.com/your-username', icon: FaGithub },
 ]

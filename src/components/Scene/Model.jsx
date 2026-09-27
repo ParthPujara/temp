@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { Float, PresentationControls } from '@react-three/drei'
 import { MathUtils } from 'three'
 import {
+  contactProgress,
   experienceProgress,
   NODES_SPLIT_AT,
   revealProgress,
@@ -10,6 +11,7 @@ import {
   skillsProgress,
 } from '../../lib/scrollProgress'
 import { skillGroups } from '../Skills Section/skills'
+import ContactModel from './ContactModel'
 import ExperienceNodes from './ExperienceNodes'
 import { orbitLayout } from './orbitLayout'
 import SkillOrbits from './SkillOrbits'
@@ -48,6 +50,7 @@ export default function Model() {
   const smoothProgress = useRef(0)
   const smoothSkills = useRef(0)
   const smoothExperience = useRef(0)
+  const smoothContact = useRef(0)
 
   useFrame((state, delta) => {
     // Ease toward the scroll position so the model never jumps
@@ -59,6 +62,7 @@ export default function Model() {
       6,
       delta,
     ))
+    smoothContact.current = damp(smoothContact.current, contactProgress.get(), 6, delta)
 
     spinRef.current.rotation.y += delta * 0.3
 
@@ -161,7 +165,10 @@ export default function Model() {
       </group>
 
       {/* Outside the system group: the nodes sit on their entries in the page */}
-      <ExperienceNodes progressRef={smoothExperience} wireRef={wireRef} />
+      <ExperienceNodes progressRef={smoothExperience} contactRef={smoothContact} wireRef={wireRef} />
+
+      {/* Contact: the nodes merge into this single hero-style model */}
+      <ContactModel progressRef={smoothContact} />
     </>
   )
 }

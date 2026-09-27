@@ -23,7 +23,9 @@ export default function SceneCanvas() {
       </Suspense>
 
       <EffectComposer>
-        <Bloom intensity={0.8} luminanceThreshold={0.2} mipmapBlur />
+        {/* Subtle on purpose: a high threshold keeps the wireframe and logos crisp behind text,
+            so only the bright moments (stone flashes, particle bursts) glow */}
+        <Bloom intensity={0.35} luminanceThreshold={0.6} luminanceSmoothing={0.3} mipmapBlur />
       </EffectComposer>
     </Canvas>
   )

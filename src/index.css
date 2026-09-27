@@ -3,19 +3,19 @@
 /* Theme tokens: every --color-* here becomes a Tailwind color
    usable as bg-*, text-*, border-*, ring-*, etc. */
 @theme {
-  /* Backgrounds */
-  --color-void: #07090C;
-  --color-surface: #0D1117;
-  --color-elevated: #141920;
+  /* Backgrounds (blue-grey slate, lightest last) */
+  --color-void: #111821;
+  --color-surface: #18212C;
+  --color-elevated: #202B38;
 
   /* Borders */
-  --color-border-subtle: #1E252E;
-  --color-border-active: #252B30;
+  --color-border-subtle: #2A3644;
+  --color-border-active: #354354;
 
   /* Text */
   --color-text-primary: #F3F5F7;
-  --color-text-secondary: #828C96;
-  --color-text-muted: #535C65;
+  --color-text-secondary: #94A0AD;
+  --color-text-muted: #66727F;
 
   /* Brand / accents */
   --color-cyan-primary: #00E5FF;
