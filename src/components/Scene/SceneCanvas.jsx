@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Environment, PresentationControls } from '@react-three/drei'
+import { Environment } from '@react-three/drei'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import Model from './Model'
 
@@ -18,15 +18,7 @@ export default function SceneCanvas() {
       <pointLight position={[-4, -2, 3]} intensity={20} color="#7C3AED" />
 
       <Suspense fallback={null}>
-        {/* Drag anywhere on the canvas rotates the model itself, not the camera */}
-        <PresentationControls
-          global
-          polar={[-Infinity, Infinity]}
-          azimuth={[-Infinity, Infinity]}
-          speed={1.5}
-        >
-          <Model />
-        </PresentationControls>
+        <Model />
         <Environment preset="city" />
       </Suspense>
 

@@ -1,8 +1,11 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Float } from '@react-three/drei'
+import { Float, PresentationControls } from '@react-three/drei'
 import { MathUtils } from 'three'
-import { revealProgress } from '../../lib/revealProgress'
+import { revealProgress, SHATTER_AT, skillsProgress } from '../../lib/scrollProgress'
+import { skillGroups } from '../Skills Section/skills'
+import { orbitLayout } from './orbitLayout'
+import SkillOrbits from './SkillOrbits'
 
 const { damp, lerp, smoothstep } = MathUtils
 
@@ -14,66 +17,110 @@ const WIRE_RADIUS = 1.4
 const STONE_SCALE = 0.8
 // Expanded wireframe diameter as a fraction of the screen height
 const EXPANDED_FIT = 1.1
+// Stone radius relative to the core during Skills (matches STONE_FILL in SkillOrbits.jsx)
+const STONE_FILL = 0.65
 
-// Stone inside a wireframe shell. On scroll the stone swells, glows and collapses
-// while the wireframe expands around the About text (see About.jsx for the text timing).
+// Stone inside a wireframe shell.
+// About: the stone swells, glows and collapses while the wireframe expands around the
+// About text (see About.jsx for the text timing).
+// Skills: the wireframe shrinks into a small core at the center of the orbits, and the stone
+// reforms inside it, charges up and shatters into the orbiting logos (see SkillOrbits.jsx).
 export default function Model() {
+  const coreRef = useRef()
   const spinRef = useRef()
   const wireRef = useRef()
   const wireMaterialRef = useRef()
   const stoneRef = useRef()
   const stoneMaterialRef = useRef()
   const smoothProgress = useRef(0)
+  const smoothSkills = useRef(0)
 
   useFrame((state, delta) => {
     // Ease toward the scroll position so the model never jumps
     const progress = (smoothProgress.current = damp(smoothProgress.current, revealProgress.get(), 6, delta))
+    const skills = (smoothSkills.current = damp(smoothSkills.current, skillsProgress.get(), 6, delta))
 
     spinRef.current.rotation.y += delta * 0.3
 
-    // Stone: swells and glows, then collapses as the About text emerges
-    const swell = smoothstep(progress, 0, 0.2)
-    const collapse = smoothstep(progress, 0.2, 0.45)
-    stoneRef.current.scale.setScalar(STONE_SCALE * (1 + 0.15 * swell) * (1 - collapse))
-    stoneRef.current.visible = collapse < 1
-    stoneMaterialRef.current.emissiveIntensity = 2.5 * swell
-    stoneMaterialRef.current.opacity = 1 - collapse
+    const layout = orbitLayout(state.viewport, state.size, skillGroups.length)
+    // Skills: the core shrinks and drops to the center of the orbit rings
+    const shrink = smoothstep(skills, 0, 0.45)
+    coreRef.current.position.y = lerp(0, layout.centerY, shrink)
 
-    // Wireframe: expands to frame the About content and fades so the text stays readable
+    // Stone: the Skills phase takes over once it starts (About is fully revealed by then)
+    let size, presence, swell, glow
+    if (skills > 0.001) {
+      // Reforms inside the core, then swells and glows brighter until it shatters
+      const charge = smoothstep(skills, 0.25, SHATTER_AT)
+      size = (layout.coreRadius * STONE_FILL) / WIRE_RADIUS
+      presence = skills < SHATTER_AT ? smoothstep(skills, 0.05, 0.3) : 0
+      swell = charge
+      glow = 0.5 + 3 * charge
+    } else {
+      // About: swells and glows, then collapses as the About text emerges
+      size = STONE_SCALE
+      swell = smoothstep(progress, 0, 0.2)
+      presence = 1 - smoothstep(progress, 0.2, 0.45)
+      glow = 2.5 * swell
+    }
+    stoneRef.current.scale.setScalar(size * (1 + 0.15 * swell) * presence)
+    stoneRef.current.visible = presence > 0
+    stoneMaterialRef.current.emissiveIntensity = glow
+    stoneMaterialRef.current.opacity = presence
+
+    // Wireframe: expands to frame the About content and fades so the text stays readable,
+    // then (Skills) shrinks into the core and brightens again
     const expand = smoothstep(progress, 0.15, 0.75)
     const expandedScale = (state.viewport.height * EXPANDED_FIT) / (2 * WIRE_RADIUS)
-    wireRef.current.scale.setScalar(lerp(1, expandedScale, expand))
-    wireMaterialRef.current.opacity = lerp(1, 0.35, expand)
+    const aboutScale = lerp(1, expandedScale, expand)
+    wireRef.current.scale.setScalar(lerp(aboutScale, layout.coreRadius / WIRE_RADIUS, shrink))
+    wireMaterialRef.current.opacity = lerp(lerp(1, 0.35, expand), 0.7, shrink)
   })
 
   return (
-    <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.6}>
-      <group ref={spinRef}>
-        <mesh ref={wireRef}>
-          <icosahedronGeometry args={[WIRE_RADIUS, 1]} />
-          <meshStandardMaterial
-            ref={wireMaterialRef}
-            color={CYAN_PRIMARY}
-            emissive={CYAN_PRIMARY}
-            emissiveIntensity={0.6}
-            wireframe
-            transparent
-          />
-        </mesh>
+    <>
+      {/* Moves the core to the center of the Skills orbits */}
+      <group ref={coreRef}>
+        {/* Drag anywhere on the canvas rotates the model itself, not the camera */}
+        <PresentationControls
+          global
+          polar={[-Infinity, Infinity]}
+          azimuth={[-Infinity, Infinity]}
+          speed={1.5}
+        >
+          <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.6}>
+            <group ref={spinRef}>
+              <mesh ref={wireRef}>
+                <icosahedronGeometry args={[WIRE_RADIUS, 1]} />
+                <meshStandardMaterial
+                  ref={wireMaterialRef}
+                  color={CYAN_PRIMARY}
+                  emissive={CYAN_PRIMARY}
+                  emissiveIntensity={0.6}
+                  wireframe
+                  transparent
+                />
+              </mesh>
 
-        <mesh ref={stoneRef} scale={STONE_SCALE}>
-          <icosahedronGeometry args={[WIRE_RADIUS, 0]} />
-          <meshStandardMaterial
-            ref={stoneMaterialRef}
-            color={VIOLET_ACCENT}
-            emissive={VIOLET_ACCENT}
-            emissiveIntensity={0}
-            metalness={0.6}
-            roughness={0.25}
-            transparent
-          />
-        </mesh>
+              <mesh ref={stoneRef} scale={STONE_SCALE}>
+                <icosahedronGeometry args={[WIRE_RADIUS, 0]} />
+                <meshStandardMaterial
+                  ref={stoneMaterialRef}
+                  color={VIOLET_ACCENT}
+                  emissive={VIOLET_ACCENT}
+                  emissiveIntensity={0}
+                  metalness={0.6}
+                  roughness={0.25}
+                  transparent
+                />
+              </mesh>
+            </group>
+          </Float>
+        </PresentationControls>
       </group>
-    </Float>
+
+      {/* Outside the drag controls so the rings hold still while the core is dragged */}
+      <SkillOrbits progressRef={smoothSkills} stoneRef={stoneRef} />
+    </>
   )
 }

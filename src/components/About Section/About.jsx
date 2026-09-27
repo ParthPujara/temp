@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { motion, useMotionValueEvent, useScroll, useTransform } from 'motion/react'
-import { revealProgress } from '../../lib/revealProgress'
+import { revealProgress } from '../../lib/scrollProgress'
 import ExpertiseCard from './ExpertiseCard'
 
 // TODO: replace with your own story and areas of expertise
