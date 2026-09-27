@@ -1,10 +1,14 @@
 export default function ExpertiseCard({ title, description, tags }) {
   return (
-    <article className="rounded-2xl border border-border-subtle bg-surface p-6 transition-colors hover:border-cyan-deep">
-      <h3 className="text-xl font-semibold">{title}</h3>
-      <p className="mt-3 leading-relaxed text-text-secondary">{description}</p>
+    // Translucent so the wireframe shows through behind the card
+    <article className="rounded-2xl border border-border-subtle bg-surface/70 p-5 backdrop-blur-sm">
+      <h3 className="text-lg font-semibold">{title}</h3>
+      {/* Description only on large screens so the content fits inside the wireframe */}
+      <p className="mt-2 hidden text-sm leading-relaxed text-text-secondary lg:block">
+        {description}
+      </p>
 
-      <ul className="mt-5 flex flex-wrap gap-2">
+      <ul className="mt-4 flex flex-wrap gap-2">
         {tags.map((tag) => (
           <li
             key={tag}
